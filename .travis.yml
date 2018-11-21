@@ -22,6 +22,7 @@
 language: cpp
 branches:
   only:
+      - feature-CNS
       - dev
       - master
 env:
