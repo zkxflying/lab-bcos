@@ -22,7 +22,7 @@
 language: cpp
 branches:
   only:
-      - 
+      - feature-CA
       - dev
       - master
 env:
