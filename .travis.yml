@@ -25,6 +25,7 @@ branches:
       - dev
       - master
       - release
+      - feature-meshchain
 env:
     global:
       - TRAVIS_BUILD_TYPE=RelWithDebInfo
