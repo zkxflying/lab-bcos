@@ -108,6 +108,9 @@ public:
         m_messageFactory = _messageFactory;
     }
 
+    virtual void setCRL(std::vector<std::string> const& crl) { m_crl = crl; }
+    virtual std::vector<std::string> crl() { return m_crl; }
+
 private:
     /// called by 'startedWorking' to accept connections
     void startAccept(boost::system::error_code ec = boost::system::error_code());
@@ -150,6 +153,8 @@ private:
     Mutex x_pendingNodeConns;
 
     std::shared_ptr<std::thread> m_hostThread;
+
+    std::vector<std::string> m_crl;
 };
 }  // namespace p2p
 
