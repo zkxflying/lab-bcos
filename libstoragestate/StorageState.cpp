@@ -125,6 +125,10 @@ void StorageState::subBalance(Address const& _address, u256 const& _amount)
             table->update(ACCOUNT_BALANCE, entry, table->newCondition());
         }
     }
+    else
+    {
+        BOOST_THROW_EXCEPTION(NotEnoughCash());
+    }
 }
 
 void StorageState::setBalance(Address const& _address, u256 const& _amount)
@@ -324,7 +328,8 @@ void StorageState::commit()
 
 void StorageState::dbCommit(h256 const& _blockHash, int64_t _blockNumber)
 {
-    m_memoryTableFactory->commitDB(_blockHash, _blockNumber);
+    // ExecutiveContext will commit
+    // m_memoryTableFactory->commitDB(_blockHash, _blockNumber);
 }
 
 void StorageState::setRoot(h256 const& _root) {}

@@ -17,6 +17,7 @@ eth_path=
 gen_sdk=false
 jks_passwd=123456
 make_tar=
+enable_public_listen_ip="false"
 Download=false
 Download_Link=https://github.com/FISCO-BCOS/lab-bcos/raw/dev/bin/fisco-bcos
 
@@ -24,15 +25,16 @@ help() {
     echo $1
     cat << EOF
 Usage:
-    -l <IP list>                [Required] "ip1:nodeNum1,ip2:nodeNum2" e.g:"192.168.0.1:2,192.168.0.2:3"
-    -f <IP list file>           [Optional] "split by line, "ip:nodeNum"
-    -e <FISCO-BCOS binary path> Default download from GitHub
-    -o <Output Dir>             Default ./nodes/
-    -p <Start Port>             Default 30300
-    -d <JKS passwd>             Default not generate jks files, if set use param as jks passwd
-    -s <State type>             Default mpt. if set -s, use storage 
-    -t <Cert config file>       Default auto generate
-    -z <Generate tar packet>    Default no
+    -l <IP list>                        [Required] "ip1:nodeNum1,ip2:nodeNum2" e.g:"192.168.0.1:2,192.168.0.2:3"
+    -f <IP list file>                   [Optional] "split by line, "ip:nodeNum"
+    -e <FISCO-BCOS binary path>         Default download from GitHub
+    -o <Output Dir>                     Default ./nodes/
+    -p <Start Port>                     Default 30300
+    -i <enable public rpc listen ip>    Default 127.0.0.1
+    -d <JKS passwd>                     Default not generate jks files, if set use param as jks passwd
+    -s <State type>                     Default mpt. if set -s, use storage 
+    -t <Cert config file>               Default auto generate
+    -z <Generate tar packet>            Default no
     -h Help
 e.g 
     build_chain.sh -l "192.168.0.1:2,192.168.0.2:2"
@@ -227,7 +229,7 @@ EOF
  "serial":"$serial",
  "pubkey":"$nodeid",
  "name":"$node"
-
+}
 EOF
 
     echo "build $node node cert successful!"
@@ -275,10 +277,15 @@ gen_sdk_cert() {
 generate_config_ini()
 {
     local output=$1
+    if [ "${enable_public_listen_ip}" == "true" ];then
+        listen_ip="${2}"
+    else
+        listen_ip="127.0.0.1"
+    fi
     cat << EOF > ${output}
 [rpc]
     ;rpc listen ip
-    listen_ip=127.0.0.1
+    listen_ip=${listen_ip}
     ;channelserver listen port
     listen_port=$(( port_start + 1 + index * 4 ))
     ;rpc listen port
@@ -298,6 +305,7 @@ generate_config_ini()
 ;group.2.ini can be populated from group.1.ini
 ;WARNING: group 0 is forbided
 [group]
+    group_data_path=data
     group_config.1=conf/group.1.ini
 
 ;certificate configuration
@@ -339,36 +347,31 @@ generate_group_ini()
     cat << EOF > ${output} 
 ;consensus configuration
 [consensus]
-;consensus type: only support PBFT now
-consensusType=pbft
-;the max number of transactions of a block
-maxTransNum=1000
-;the node id of leaders
-$nodeid_list
+    ;only support PBFT now
+    consensusType=pbft
+    ;the max number of transactions of a block
+    maxTransNum=1000
+    ;the node id of leaders
+    $nodeid_list
 
 ;sync period time
 [sync]
-idleWaitMs=200
-
+    idleWaitMs=200
 [storage]
-;storage db type, now support leveldb 
-type=${storage_type}
-dbpath=data
-
+    ;storage db type, now support leveldb 
+    type=${storage_type}
 [state]
-;state type, now support mpt/storage
-type=${state_type}
-
-
+    ;support mpt/storage
+    type=${state_type}
 
 ;genesis configuration
 [genesis]
-;used to mark the genesis block of this group
-;mark=${group_id}
+    ;used to mark the genesis block of this group
+    ;mark=${group_id}
 
 ;txpool limit
 [txPool]
-limit=1000
+    limit=1000
 EOF
 }
 
@@ -432,16 +435,47 @@ EOF
 
 genTransTest()
 {
-    local file=${output_dir}"/transTest.sh"
+    local file="${output_dir}/transTest.sh"
     cat << EOF > "${file}"
-#!bin/bash
-curl -X POST --data '{"jsonrpc":"2.0","method":"sendRawTransaction","params":[1, "f8ef9f65f0d06e39dc3c08e32ac10a5070858962bc6c0f5760baca823f2d5582d03f85174876e7ff8609184e729fff82020394d6f1a71052366dbae2f7ab2d5d5845e77965cf0d80b86448f85bce000000000000000000000000000000000000000000000000000000000000001bf5bd8a9e7ba8b936ea704292ff4aaa5797bf671fdc8526dcd159f23c1f5a05f44e9fa862834dc7cb4541558f2b4961dc39eaaf0af7f7395028658d0e01b86a371ca00b2b3fabd8598fefdda4efdb54f626367fc68e1735a8047f0f1c4f840255ca1ea0512500bc29f4cfe18ee1c88683006d73e56c934100b8abf4d2334560e1d2f75e"],"id":83}' http://127.0.0.1:$(( port_start + 2))
+#! /bin/sh
+# This script only support for block number smaller than 65535 - 256
+
+ip_port=127.0.0.1:30302
+trans_num=1
+if [ \$# -eq 1 ];then
+    trans_num=\$1
+fi
+block_limit()
+{
+    blockNumber=\`curl -s -X POST --data '{"jsonrpc":"2.0","method":"syncStatus","params":[1],"id":83}' \$1 |jq .result.blockNumber\`
+    printf "%04x" \$((\$blockNumber+256))
+}
+
+send_a_tx()
+{
+    txBytes="f8f0a02ade583745343a8f9a70b40db996fbe69c63531832858\`date +%s%N\`85174876e7ff8609184e729fff82\`block_limit \$1\`94d6f1a71052366dbae2f7ab2d5d5845e77965cf0d80b86448f85bce000000000000000000000000000000000000000000000000000000000000001bf5bd8a9e7ba8b936ea704292ff4aaa5797bf671fdc8526dcd159f23c1f5a05f44e9fa862834dc7cb4541558f2b4961dc39eaaf0af7f7395028658d0e01b86a371ca0e33891be86f781ebacdafd543b9f4f98243f7b52d52bac9efa24b89e257a354da07ff477eb0ba5c519293112f1704de86bd2938369fbf0db2dff3b4d9723b9a87d"
+    #echo \$txBytes
+    curl -s -X POST --data '{"jsonrpc":"2.0","method":"sendRawTransaction","params":[1, "'\$txBytes'"],"id":83}' \$1 |jq
+}
+
+send_many_tx()
+{
+    for j in \$(seq 1 \$1)
+    do
+        echo 'Send transaction: ' \$j
+        send_a_tx \${ip_port} 
+    done
+}
+
+send_many_tx \${trans_num}
+
 EOF
+    chmod +x ${output_dir}"/transTest.sh"
 }
 
 main()
 {
-while getopts "f:l:o:p:e:t:dszh" option;do
+while getopts "f:l:o:p:e:t:idszh" option;do
     case $option in
     f) ip_file=$OPTARG
        use_ip_param="false"
@@ -450,6 +484,7 @@ while getopts "f:l:o:p:e:t:dszh" option;do
        use_ip_param="true"
     ;;
     o) output_dir=$OPTARG;;
+    i) enable_public_listen_ip="true";;
     p) port_start=$OPTARG;;
     e) eth_path=$OPTARG;;
     d) gen_sdk="true"
@@ -545,6 +580,8 @@ for line in ${ip_array[*]};do
             # read_password
             openssl pkcs12 -export -name client -passout "pass:$jks_passwd" -in "$node_dir/${conf_path}/node.crt" -inkey "$node_dir/${conf_path}/node.key" -out "$node_dir/sdk/keystore.p12"
 		    keytool -importkeystore  -srckeystore "$node_dir/sdk/keystore.p12" -srcstoretype pkcs12 -srcstorepass $jks_passwd -alias client -destkeystore "$node_dir/sdk/client.keystore" -deststoretype jks -deststorepass $jks_passwd >> /dev/null 2>&1 || fail_message "java keytool error!" 
+            #copy ca.crt
+            cp ${output_dir}/cert/ca.crt $node_dir/sdk/
             # gen_sdk_cert ${output_dir}/cert/agency $node_dir
             # mv $node_dir/* $node_dir/sdk/
         fi
@@ -574,7 +611,7 @@ for line in ${ip_array[*]};do
     for ((i=0;i<num;++i));do
         echo "Generating IP:${ip} ID:${index} files..."
         node_dir="$output_dir/node_${ip}_${index}"
-        generate_config_ini "$node_dir/config.ini"
+        generate_config_ini "$node_dir/config.ini" "${ip}"
         generate_group_ini "$node_dir/${conf_path}/group.1.ini"
         generate_node_scripts "$node_dir"
         cp "$eth_path" "$node_dir/fisco-bcos"
@@ -588,7 +625,7 @@ for line in ${ip_array[*]};do
     chmod +x "$output_dir/stop_all.sh"
     chmod +x "$output_dir/replace_all.sh"
 done 
-rm $output_dir/build.log cert.cnf
+#rm $output_dir/build.log cert.cnf
 genTransTest
 echo "=========================================="
 echo "FISCO-BCOS Path : $eth_path"

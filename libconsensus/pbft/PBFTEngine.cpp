@@ -102,6 +102,7 @@ bool PBFTEngine::shouldSeal()
  */
 void PBFTEngine::rehandleCommitedPrepareCache(PrepareReq const& req)
 {
+    Guard l(m_mutex);
     PBFTENGINE_LOG(INFO) << "[#shouldSeal:rehandleCommittedPrepare] Post out "
                             "committed-but-not-saved block: [hash/height]:  "
                          << req.block_hash.abridged() << "/" << req.height << std::endl;
@@ -566,11 +567,11 @@ void PBFTEngine::checkAndCommit()
                 << m_reqCache->prepareCache().block_hash.abridged() << std::endl;
             return;
         }
+        m_reqCache->updateCommittedPrepare();
         /// update and backup the commit cache
         PBFTENGINE_LOG(TRACE) << "[#checkAndCommit] backup/updateCommittedPrepare [hash/number]:  "
                               << m_reqCache->committedPrepareCache().block_hash << "/"
                               << m_reqCache->committedPrepareCache().height << std::endl;
-        m_reqCache->updateCommittedPrepare();
         backupMsg(c_backupKeyCommitted, m_reqCache->committedPrepareCache());
         PBFTENGINE_LOG(TRACE) << "[#checkAndCommit] broadcastCommitReq [hash/number]:  "
                               << m_reqCache->prepareCache().block_hash << "/"
@@ -633,7 +634,10 @@ void PBFTEngine::checkAndSave()
                 m_blockSync->noteSealingBlockNumber(m_blockChain->number());
                 m_txPool->handleBadBlock(block);
             }
+            /// clear caches to in case of repeated commit
             resetConfig();
+            m_reqCache->clearAllExceptCommitCache();
+            m_reqCache->delCache(m_reqCache->prepareCache().block_hash);
         }
         else
         {
@@ -670,7 +674,7 @@ void PBFTEngine::reportBlock(Block const& block)
             /// delete invalid view change requests from the cache
             m_reqCache->delInvalidViewChange(m_highestBlock);
         }
-        /// clear caches
+        resetConfig();
         m_reqCache->clearAllExceptCommitCache();
         m_reqCache->delCache(m_highestBlock.hash());
         PBFTENGINE_LOG(INFO) << "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^Report: number= "
@@ -1097,7 +1101,7 @@ void PBFTEngine::updateMinerList()
                 (boost::lexical_cast<int>(node->getField("enable_num")) <= curBlockNum))
             {
                 h512 nodeID = h512(node->getField("node_id"));
-                if (find(miner_list.begin(), miner_list.end(), nodeID) != miner_list.end())
+                if (find(miner_list.begin(), miner_list.end(), nodeID) == miner_list.end())
                 {
                     miner_list.push_back(nodeID);
                     PBFTENGINE_LOG(INFO)
@@ -1107,7 +1111,7 @@ void PBFTEngine::updateMinerList()
             }
         }
         /// remove observe nodes
-        for (size_t i = 0; i < miner_list.size(); i++)
+        for (size_t i = 0; i < nodes->size(); i++)
         {
             auto node = nodes->get(i);
             if (!node)
@@ -1126,9 +1130,11 @@ void PBFTEngine::updateMinerList()
                 }
             }
         }
-
         UpgradeGuard ul(l);
         m_minerList = miner_list;
+        /// to make sure the index of all miners are consistent
+        std::sort(m_minerList.begin(), m_minerList.end());
+        m_lastObtainMinerNum = m_highestBlock.number();
     }
     catch (std::exception& e)
     {
@@ -1136,6 +1142,5 @@ void PBFTEngine::updateMinerList()
                               << boost::diagnostic_information(e);
     }
 }
-
 }  // namespace consensus
 }  // namespace dev

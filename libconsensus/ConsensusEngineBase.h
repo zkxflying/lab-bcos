@@ -98,21 +98,20 @@ public:
         status_obj.push_back(json_spirit::Pair("nodeNum", m_nodeNum.convert_to<size_t>()));
         status_obj.push_back(json_spirit::Pair("f", m_f.convert_to<size_t>()));
         status_obj.push_back(json_spirit::Pair("consensusedBlockNumber", m_consensusBlockNumber));
-        status_obj.push_back(
-            json_spirit::Pair("highestBlockHeader.blockNumber", m_highestBlock.number()));
-        status_obj.push_back(
-            json_spirit::Pair("highestBlockHeader.blockHash", toHex(m_highestBlock.hash())));
+        status_obj.push_back(json_spirit::Pair("highestblockNumber", m_highestBlock.number()));
+        status_obj.push_back(json_spirit::Pair("highestblockHash", toHex(m_highestBlock.hash())));
         status_obj.push_back(json_spirit::Pair("protocolId", m_protocolId));
         status_obj.push_back(json_spirit::Pair("accountType", m_accountType));
-        std::string miner_list;
+        int i = 0;
+        std::string miner_list = "";
         {
             ReadGuard l(m_minerListMutex);
             for (auto miner : m_minerList)
             {
-                miner_list = toHex(miner) + "#";
+                status_obj.push_back(json_spirit::Pair("miner." + toString(i), toHex(miner)));
+                i++;
             }
         }
-        status_obj.push_back(json_spirit::Pair("minerList", miner_list));
         status_obj.push_back(json_spirit::Pair("allowFutureBlocks", m_allowFutureBlocks));
     }
 
