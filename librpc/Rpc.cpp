@@ -30,6 +30,7 @@
 #include <libethcore/CommonJS.h>
 #include <libethcore/Transaction.h>
 #include <libexecutive/ExecutionResult.h>
+#include <libstorage/MinerPrecompiled.h>
 #include <libsync/SyncStatus.h>
 #include <libtxpool/TxPoolInterface.h>
 #include <boost/algorithm/hex.hpp>
@@ -38,7 +39,7 @@
 using namespace jsonrpc;
 using namespace dev::rpc;
 using namespace dev::sync;
-
+using namespace dev::ledger;
 
 Rpc::Rpc(std::shared_ptr<dev::ledger::LedgerManager> _ledgerManager,
     std::shared_ptr<dev::p2p::P2PInterface> _service)
@@ -214,7 +215,7 @@ Json::Value Rpc::getPeers()
         {
             Json::Value node;
             node["NodeID"] = it->nodeID.hex();
-            node["IP & Port"] = it->nodeIPEndpoint.name();
+            node["IPAndPort"] = it->nodeIPEndpoint.name();
             node["Topic"] = Json::Value(Json::arrayValue);
             for (std::string topic : it->topics)
                 node["Topic"].append(topic);
@@ -779,6 +780,10 @@ Json::Value Rpc::call(int _groupID, const Json::Value& request)
                   << "{ " << std::endl
                   << "\"_groupID\" : " << _groupID << "," << std::endl
                   << request.toStyledString() << "}";
+
+        if (request["from"].empty() || request["from"].asString().empty())
+            BOOST_THROW_EXCEPTION(
+                JsonRpcException(RPCExceptionType::CallFrom, RPCMsg[RPCExceptionType::CallFrom]));
 
         auto blockchain = ledgerManager()->blockChain(_groupID);
         auto blockverfier = ledgerManager()->blockVerifier(_groupID);
