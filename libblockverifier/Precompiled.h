@@ -20,7 +20,9 @@
  */
 #pragma once
 
+#include <libdevcore/Address.h>
 #include <libdevcore/FixedHash.h>
+#include <libstorage/Table.h>
 #include <memory>
 
 namespace dev
@@ -41,7 +43,8 @@ public:
 
     virtual std::string toString(std::shared_ptr<ExecutiveContext>) { return ""; }
 
-    virtual bytes call(std::shared_ptr<ExecutiveContext> context, bytesConstRef param) = 0;
+    virtual bytes call(std::shared_ptr<ExecutiveContext> context, bytesConstRef param,
+        Address const& origin = Address()) = 0;
 
     virtual uint32_t getParamFunc(bytesConstRef param)
     {
@@ -53,6 +56,11 @@ public:
     }
 
     virtual bytesConstRef getParamData(bytesConstRef param) { return param.cropped(4); }
+
+    virtual dev::storage::AccessOptions::Ptr getOptions(Address origin)
+    {
+        return std::make_shared<dev::storage::AccessOptions>(origin);
+    }
 };
 
 }  // namespace blockverifier

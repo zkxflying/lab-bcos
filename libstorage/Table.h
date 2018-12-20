@@ -42,7 +42,8 @@ struct AccessOptions : public std::enable_shared_from_this<AccessOptions>
 {
     typedef std::shared_ptr<AccessOptions> Ptr;
     AccessOptions() = default;
-    Address caller;
+    AccessOptions(Address _origin) { origin = _origin; }
+    Address origin;
 };
 
 class Entry : public std::enable_shared_from_this<Entry>
@@ -192,6 +193,7 @@ public:
     virtual h256 hash() = 0;
     virtual void clear() = 0;
     virtual std::map<std::string, Entries::Ptr>* data() { return NULL; }
+    virtual bool checkAuthority(Address const& _origin) const = 0;
 
 protected:
     std::function<void(Ptr, Change::Kind, std::string const&, std::vector<Change::Record>&)>
@@ -206,7 +208,7 @@ public:
 
     virtual ~StateDBFactory() {}
 
-    virtual Table::Ptr openTable(const std::string& table) = 0;
+    virtual Table::Ptr openTable(const std::string& table, bool authorityFlag = true) = 0;
     virtual Table::Ptr createTable(const std::string& tableName, const std::string& keyField,
         const std::string& valueField) = 0;
 };

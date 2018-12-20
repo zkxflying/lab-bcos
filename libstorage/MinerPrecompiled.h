@@ -28,7 +28,7 @@ namespace blockverifier
 #if 0
 contract Miner {
     function add(string) public constant returns();
-    function cancel(string) public returns();
+    function remove(string) public returns();
 }
 {
     "b0c8f9dc": "add(string)",
@@ -51,7 +51,8 @@ public:
 
     virtual ~MinerPrecompiled(){};
 
-    virtual bytes call(ExecutiveContext::Ptr context, bytesConstRef param);
+    virtual bytes call(
+        ExecutiveContext::Ptr context, bytesConstRef param, Address const& origin = Address());
 };
 
 }  // namespace blockverifier

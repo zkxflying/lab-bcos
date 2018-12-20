@@ -42,7 +42,7 @@ MemoryTableFactory::MemoryTableFactory() : m_blockHash(h256(0)), m_blockNum(0)
     m_sysTables.push_back(SYS_HASH_2_BLOCK);
 }
 
-Table::Ptr MemoryTableFactory::openTable(const string& tableName)
+Table::Ptr MemoryTableFactory::openTable(const string& tableName, bool authorityFlag)
 {
     auto it = m_name2Table.find(tableName);
     if (it != m_name2Table.end())
@@ -80,6 +80,30 @@ Table::Ptr MemoryTableFactory::openTable(const string& tableName)
     memoryTable->setStateStorage(m_stateStorage);
     memoryTable->setBlockHash(m_blockHash);
     memoryTable->setBlockNum(m_blockNum);
+
+    // authority flag
+    if (authorityFlag)
+    {
+        // set authorized address to memoryTable
+        if (tableName != string(SYS_ACCESS_TABLE))
+        {
+            setAuthorizedAddress(tableInfo);
+        }
+        else
+        {
+            memoryTable->setTableInfo(tableInfo);
+            auto tableEntries = memoryTable->select(tableInfo->name, memoryTable->newCondition());
+            for (size_t i = 0; i < tableEntries->size(); ++i)
+            {
+                auto entry = tableEntries->get(i);
+                if (std::stoi(entry->getField("enable_num")) <= m_blockNum)
+                {
+                    tableInfo->authorizedAddress.emplace_back(entry->getField("address"));
+                }
+            }
+        }
+    }
+
     memoryTable->setTableInfo(tableInfo);
     memoryTable->setRecorder([&](Table::Ptr _table, Change::Kind _kind, string const& _key,
                                  vector<Change::Record>& _records) {
@@ -265,7 +289,7 @@ storage::TableInfo::Ptr MemoryTableFactory::getSysTableInfo(const std::string& t
     else if (tableName == SYS_ACCESS_TABLE)
     {
         tableInfo->key = "table_name";
-        tableInfo->fields = vector<string>{"address", "enable_num", "reserve_field"};
+        tableInfo->fields = vector<string>{"address", "enable_num"};
     }
     else if (tableName == SYS_CURRENT_STATE)
     {
@@ -287,19 +311,23 @@ storage::TableInfo::Ptr MemoryTableFactory::getSysTableInfo(const std::string& t
         tableInfo->key = "key";
         tableInfo->fields = std::vector<std::string>{"value"};
     }
+
     return tableInfo;
 }
 
-void MemoryTableFactory::getAuthorizedAddress(storage::TableInfo::Ptr _tableInfo)
+void MemoryTableFactory::setAuthorizedAddress(storage::TableInfo::Ptr _tableInfo)
 {
-    auto accessTable = openTable(SYS_ACCESS_TABLE);
-    auto tableEntries = accessTable->select(_tableInfo->name, accessTable->newCondition());
-    for (size_t i = 0; i < tableEntries->size(); ++i)
+    Table::Ptr accessTable = openTable(SYS_ACCESS_TABLE);
+    if (accessTable)
     {
-        auto entry = tableEntries->get(i);
-        if (std::stoi(entry->getField("enable_num")) <= m_blockNum)
+        auto tableEntries = accessTable->select(_tableInfo->name, accessTable->newCondition());
+        for (size_t i = 0; i < tableEntries->size(); ++i)
         {
-            _tableInfo->authorizedAddress.emplace_back(entry->getField("address"));
+            auto entry = tableEntries->get(i);
+            if (std::stoi(entry->getField("enable_num")) <= m_blockNum)
+            {
+                _tableInfo->authorizedAddress.emplace_back(entry->getField("address"));
+            }
         }
     }
 }

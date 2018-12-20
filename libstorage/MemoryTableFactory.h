@@ -38,7 +38,7 @@ public:
     MemoryTableFactory();
     virtual ~MemoryTableFactory() {}
 
-    Table::Ptr openTable(const std::string& table) override;
+    Table::Ptr openTable(const std::string& table, bool authorityFlag = true) override;
     Table::Ptr createTable(const std::string& tableName, const std::string& keyField,
         const std::string& valueField) override;
 
@@ -56,7 +56,7 @@ public:
 
 private:
     storage::TableInfo::Ptr getSysTableInfo(const std::string& tableName);
-    void getAuthorizedAddress(storage::TableInfo::Ptr _tableInfo);
+    void setAuthorizedAddress(storage::TableInfo::Ptr _tableInfo);
     Storage::Ptr m_stateStorage;
     h256 m_blockHash;
     int m_blockNum;

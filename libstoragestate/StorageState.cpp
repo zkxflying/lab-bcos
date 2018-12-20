@@ -391,6 +391,15 @@ void StorageState::clear()
     m_cache.clear();
 }
 
+bool StorageState::checkAuthority(Address const& _origin, Address const& _contract) const
+{
+    auto table = getTable(_contract);
+    if (table)
+        return table->checkAuthority(_origin);
+    else
+        return true;
+}
+
 void StorageState::createAccount(Address const& _address, u256 const& _nonce, u256 const& _amount)
 {
     std::string tableName("_contract_data_" + _address.hex() + "_");
