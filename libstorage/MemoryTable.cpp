@@ -79,16 +79,16 @@ Entries::Ptr dev::storage::MemoryTable::select(const std::string& key, Condition
     return std::make_shared<Entries>();
 }
 
-size_t dev::storage::MemoryTable::update(
+int dev::storage::MemoryTable::update(
     const std::string& key, Entry::Ptr entry, Condition::Ptr condition, AccessOptions::Ptr options)
 {
     try
     {
         if (!checkAuthority(options->origin))
         {
-            STORAGE_LOG(WARNING) << m_tableInfo->name << " checkAuthority of " << options->origin
-                                 << " failed! key:" << key;
-            return 0;
+            STORAGE_LOG(WARNING) << m_tableInfo->name << " checkAuthority of "
+                                 << options->origin.hex() << " failed! key:" << key;
+            return -1;
         }
         STORAGE_LOG(DEBUG) << "Update MemoryTable: " << key;
 
@@ -144,16 +144,16 @@ size_t dev::storage::MemoryTable::update(
     return 0;
 }
 
-size_t dev::storage::MemoryTable::insert(
+int dev::storage::MemoryTable::insert(
     const std::string& key, Entry::Ptr entry, AccessOptions::Ptr options)
 {
     try
     {
         if (!checkAuthority(options->origin))
         {
-            STORAGE_LOG(WARNING) << m_tableInfo->name << " checkAuthority of " << options->origin
-                                 << " failed! key:" << key;
-            return 0;
+            STORAGE_LOG(WARNING) << m_tableInfo->name << " checkAuthority of "
+                                 << options->origin.hex() << " failed! key:" << key;
+            return -1;
         }
         STORAGE_LOG(DEBUG) << "Insert MemoryTable: " << key;
 
@@ -200,14 +200,14 @@ size_t dev::storage::MemoryTable::insert(
     return 1;
 }
 
-size_t dev::storage::MemoryTable::remove(
+int dev::storage::MemoryTable::remove(
     const std::string& key, Condition::Ptr condition, AccessOptions::Ptr options)
 {
     if (!checkAuthority(options->origin))
     {
-        STORAGE_LOG(WARNING) << m_tableInfo->name << " checkAuthority of " << options->origin
+        STORAGE_LOG(WARNING) << m_tableInfo->name << " checkAuthority of " << options->origin.hex()
                              << " failed! key:" << key;
-        return 0;
+        return -1;
     }
     STORAGE_LOG(DEBUG) << "Remove MemoryTable data" << key;
 

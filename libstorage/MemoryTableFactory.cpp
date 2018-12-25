@@ -115,13 +115,13 @@ Table::Ptr MemoryTableFactory::openTable(const string& tableName, bool authority
     return memoryTable;
 }
 
-Table::Ptr MemoryTableFactory::createTable(
-    const string& tableName, const string& keyField, const std::string& valueField)
+Table::Ptr MemoryTableFactory::createTable(const string& tableName, const string& keyField,
+    const std::string& valueField, bool authorigytFlag, Address const& _origin)
 {
     STORAGE_LOG(DEBUG) << "Create Table:" << m_blockHash << " num:" << m_blockNum
                        << " table:" << tableName;
 
-    auto sysTable = openTable(SYS_TABLES);
+    auto sysTable = openTable(SYS_TABLES, authorigytFlag);
 
     // To make sure the table exists
     auto tableEntries = sysTable->select(tableName, sysTable->newCondition());
@@ -135,8 +135,13 @@ Table::Ptr MemoryTableFactory::createTable(
     tableEntry->setField("table_name", tableName);
     tableEntry->setField("key_field", keyField);
     tableEntry->setField("value_field", valueField);
-    sysTable->insert(tableName, tableEntry);
-
+    createTableCode =
+        sysTable->insert(tableName, tableEntry, std::make_shared<AccessOptions>(_origin));
+    if (createTableCode == -1)
+    {
+        STORAGE_LOG(WARNING) << tableName << " checkAuthority of " << _origin.hex() << " failed!";
+        return nullptr;
+    }
     return openTable(tableName);
 }
 

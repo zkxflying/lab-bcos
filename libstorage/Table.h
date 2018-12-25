@@ -175,11 +175,11 @@ public:
     virtual ~Table() {}
 
     virtual Entries::Ptr select(const std::string& key, Condition::Ptr condition) = 0;
-    virtual size_t update(const std::string& key, Entry::Ptr entry, Condition::Ptr condition,
+    virtual int update(const std::string& key, Entry::Ptr entry, Condition::Ptr condition,
         AccessOptions::Ptr options = std::make_shared<AccessOptions>()) = 0;
-    virtual size_t insert(const std::string& key, Entry::Ptr entry,
+    virtual int insert(const std::string& key, Entry::Ptr entry,
         AccessOptions::Ptr options = std::make_shared<AccessOptions>()) = 0;
-    virtual size_t remove(const std::string& key, Condition::Ptr condition,
+    virtual int remove(const std::string& key, Condition::Ptr condition,
         AccessOptions::Ptr options = std::make_shared<AccessOptions>()) = 0;
 
     virtual Entry::Ptr newEntry();
@@ -210,7 +210,7 @@ public:
 
     virtual Table::Ptr openTable(const std::string& table, bool authorityFlag = true) = 0;
     virtual Table::Ptr createTable(const std::string& tableName, const std::string& keyField,
-        const std::string& valueField) = 0;
+        const std::string& valueField, bool authorigytFlag, Address const& _origin = Address()) = 0;
 };
 
 }  // namespace storage
